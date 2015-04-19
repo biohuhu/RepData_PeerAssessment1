@@ -7,19 +7,92 @@ output:
 
 
 ## Loading and preprocessing the data
-
-
+Load the data and transform date column to Date
+```{r}
+unzip('repdata_data_activity.zip', getwd())
+activity_df = read.csv("activity.csv", header = T)
+activity_df$date = as.Date(activity_df$date, "%Y-%m-%d")
+```
 
 ## What is mean total number of steps taken per day?
+For this part of the assignment, missing values are ignored in the dataset.
+Calculate the total number of steps taken per day
+```{r}
+total_step = tapply(activity_df$steps, as.factor(activity_df$date),sum)
+```
 
+Make a histogram of the total number of steps taken each day
+```{r}
+hist(total_step, 20)
+```
 
+Calculate and report the mean and median of the total number of steps taken per day
+```{r}
+mean_total_step = mean(total_step, na.rm = T)
+median_total_step = median(total_step, na.rm=T)
+```
+mean total number of steps per day is `r mean_total_step`  
+median total number of steps per day is `r median_total_step`
 
 ## What is the average daily activity pattern?
+Make a time series plot (i.e. type = "l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)
+```{r}
+mean_step = tapply(activity_df$steps, as.factor(activity_df$interval),function(x) mean(x,na.rm=T))
+plot(as.numeric(names(mean_step)),mean_step, type="l")
 
+```
 
+Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+```{r}
+which.max(mean_step)
+```
+The maximum step occurs at `r which.max(mean_step)`
 
 ## Imputing missing values
+Note that there are a number of days/intervals where there are missing values (coded as NA). The presence of missing days may introduce bias into some calculations or summaries of the data.
 
+Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with NAs)
+```{r}
+num_missing = sum(!complete.cases(activity_df))
+```
+total number of missing values in the dataset is `r num_missing`
 
+Devise a strategy for filling in all of the missing values in the dataset: I am using  the mean for that 5-minute interval to impute the value
+```{r}
+is_missing = !complete.cases(activity_df)
+imputed_df = activity_df
+imputed_df[is_missing, 'steps'] = mean_step[as.character(activity_df[is_missing,'interval'])]
+```
+   
+
+Make a histogram of the total number of steps taken each day and Calculate and report the mean and median total number of steps taken per day. Do these values differ from the estimates from the first part of the assignment? What is the impact of imputing missing data on the estimates of the total daily number of steps?
+```{r}
+total_step_imputed = tapply(imputed_df$steps, as.factor(imputed_df$date),sum)
+hist(total_step_imputed, 20)
+mean_total_step_imputed = mean(total_step_imputed, na.rm = T)
+median_total_step_imputed = median(total_step_imputed, na.rm=T)
+```
+mean total number of steps per day is `r mean_total_step_imputed` in the imputed data 
+median total number of steps per day is `r median_total_step_imputed` in the imputed data
+The mean and median didn't change, becaused they were used for imputing
 
 ## Are there differences in activity patterns between weekdays and weekends?
+Create a new factor variable in the dataset with two levels - "weekday" and "weekend" indicating whether a given date is a weekday or weekend day.
+```{r}
+is_weekend = weekdays(imputed_df$date) %in% c('Saturday','Sunday')
+imputed_df[is_weekend,"weekday"] = "weekend"
+imputed_df[!is_weekend,"weekday"] = "weekday"
+```
+
+Make a panel plot containing a time series plot (i.e. type = "l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis). 
+```{r}
+mean_step_weekend = tapply(imputed_df[is_weekend,"steps"], as.factor(imputed_df[is_weekend,"interval"]),mean)
+mean_step_weekday = tapply(imputed_df[!is_weekend,"steps"], as.factor(imputed_df[!is_weekend,"interval"]),mean)
+par(mfrow = c(2,1))
+plot(as.numeric(names(mean_step_weekend)),mean_step_weekend, type="l", main ="Weekend", 
+    xlab = "interval", ylab = "Number of steps")
+plot(as.numeric(names(mean_step_weekday)),mean_step_weekday, type="l", main = "Weekday",
+     xlab = "interval", ylab = "Number of steps")
+```
+
+
